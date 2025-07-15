@@ -1,4 +1,4 @@
-# ChordSymbol and NoteSymbol
+# Updated ChordSymbol and NoteSymbol
 
 **Simple notation for chords and notes in SuperCollider**
 

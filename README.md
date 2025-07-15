@@ -1,6 +1,6 @@
 # Updated ChordSymbol and NoteSymbol
 
-**Simple notation for chords and notes in SuperCollider**
+**Simple notation for chords and notes in SuperCollider with added frequency methods**
 
 ## Features
 

@@ -92,7 +92,7 @@ ChordSymbol {
     }
 
     *asNotes { |input|
-		var over, chord, shape, root = 0, noteNameLength = 0, dur, name, octave = 0;
+		var over, chord, shape, root = 0, noteNameLength = 0, dur, name, octave = 0, parts, octaveShift, potentialRoot, octavePart, durPart;
 
 		// return early if not a valid input
 		if(input.isRest or: (input.isKindOf(String) or: input.isKindOf(Symbol)).not) {
@@ -101,10 +101,10 @@ ChordSymbol {
 
 		// convert to string and split by underscores (max 3 parts)
 		name = input.asString;
-		var parts = name.split($\_);
+		parts = name.split($\_);
 		name = parts[0];
-		var octavePart = parts.size > 1.if({ parts[1] }, { nil });
-		var durPart    = parts.size > 2.if({ parts[2] }, { nil });
+		octavePart = parts.size > 1.if({ parts[1] }, { nil });
+		durPart    = parts.size > 2.if({ parts[2] }, { nil });
 
 		// Handle octave part
 		if(octavePart.notNil and: { octavePart.size == 1 and: octavePart[0].isDecDigit }) {
@@ -129,7 +129,7 @@ ChordSymbol {
 
 		// Extract root note from left portion
 		if(noteNameLength > 0) {
-			var potentialRoot = name.keep(noteNameLength);
+			potentialRoot = name.keep(noteNameLength);
 			root = NoteSymbol.asNote(potentialRoot);
 
 			if(root == potentialRoot) { ^input };
@@ -143,7 +143,7 @@ ChordSymbol {
 
 		// If inversion specified, sort notes upward from inversion
 		if(over.notNil and: shape.notNil) {
-			var octaveShift = 0;
+			octaveShift = 0;
 
 			if(over < root) { octaveShift = 12 };
 

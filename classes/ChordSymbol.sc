@@ -95,7 +95,7 @@ ChordSymbol {
 		var over, chord, shape, root = 0, noteNameLength = 0, dur, name, octave = 0, parts, octaveShift, potentialRoot, octavePart, durPart;
 
 		// return early if not a valid input
-		if(input.isRest or: (input.isKindOf(String) or: input.isKindOf(Symbol)).not) {
+		if(input.isRest || (input.isKindOf(String) || input.isKindOf(Symbol)).not) {
 			^input
 		};
 
@@ -103,26 +103,33 @@ ChordSymbol {
 		name = input.asString;
 		parts = name.split($\_);
 		name = parts[0];
-		octavePart = parts.size > 1.if({ parts[1] }, { nil });
-		durPart    = parts.size > 2.if({ parts[2] }, { nil });
+		octavePart = (parts.size > 1).if({ parts[1] }, { nil });
+		durPart    = (parts.size > 2).if({ parts[2] }, { nil });
 
 		// Handle octave part
-		if(octavePart.notNil and: { octavePart.size == 1 and: octavePart[0].isDecDigit }) {
+		if(
+			octavePart.notNil
+			&& { octavePart.size == 1 }
+			&& { octavePart[0].isDecDigit }
+		) {
 			octave = octavePart[0].digit;
-			over = nil;
+			over    = nil;
 		} {
-			// otherwise treat it as an inversion note
 			over = NoteSymbol.asNote(octavePart);
 		};
 
 		// Handle duration
-		if(durPart.notNil and: { durPart[0].isDecDigit }) {
+		if(
+			durPart.notNil
+			&& { durPart.size > 0 }            // ensure there's at least one char
+			&& { durPart[0].isDecDigit }
+		) {
 			dur = NoteSymbol.asDuration(durPart);
 		};
 
 		// Try to match chord shape by shortening from left until matched
 		shape = shapes[name.asSymbol];
-		while({ shape.isNil and: { noteNameLength < 3 } }, {
+		while({ shape.isNil && { noteNameLength < 3 } }, {
 			noteNameLength = noteNameLength + 1;
 			shape = shapes[name.drop(noteNameLength).asSymbol];
 		});
@@ -142,7 +149,7 @@ ChordSymbol {
 		root = root + (octave * 12);
 
 		// If inversion specified, sort notes upward from inversion
-		if(over.notNil and: shape.notNil) {
+		if(over.notNil && shape.notNil) {
 			octaveShift = 0;
 
 			if(over < root) { octaveShift = 12 };
@@ -203,7 +210,7 @@ NoteSymbol {
         var octave = 0, note, dur, name;
 
         // reguritate anything we definately can't process
-        if(input.isRest or: (input.isKindOf(String) or: input.isKindOf(Symbol)).not) {
+        if(input.isRest || (input.isKindOf(String) || input.isKindOf(Symbol)).not) {
             ^input
         };
 
@@ -222,7 +229,7 @@ NoteSymbol {
         dur = dur !? { NoteSymbol.asDuration(dur) };
 
         // if octave specified chop it off and shift note
-        if(name.notNil and: { name.last.isDecDigit }) {
+        if(name.notNil && { name.last.isDecDigit }) {
             octave = name.last.digit * 12 + 12;
             name = name.drop(-1);
         };
@@ -306,9 +313,9 @@ NoteSymbol {
     // work out wether or not this is a rest or not
     isRest {
         ^this.isMap.not
-        and: { ^NoteSymbol.restNames.findMatch(this).notNil }
-        and: { ^NoteSymbol.asNote(this).asArray[0] }
-        and: { ^ChordSymbol.asNotes(this)[0] == \ }
+        && { ^NoteSymbol.restNames.findMatch(this).notNil }
+        && { ^NoteSymbol.asNote(this).asArray[0] }
+        && { ^ChordSymbol.asNotes(this)[0] == \ }
     }
 }
 

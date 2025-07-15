@@ -4,12 +4,13 @@
 
 ## Features
 
-- **Chord progressions**: `.chordProg` → returns MIDI note arrays
-- **Chord frequencies**: `.chordProgFreqs` → returns frequency arrays via `.midicps`
-- **Note sequences**: `.noteProg` → returns MIDI note arrays
-- **Note frequencies**: `.noteProgFreq` → returns frequency arrays via `.midicps`
-- **Single-chord frequencies**: `.asFreqs` on symbols (e.g. `\\Cmaj7.asFreqs`)
 - **Single-note frequency**: `.asFreq` on symbols (e.g. `\\c4.asFreq`)
+- **Single-chord frequencies**: `.asFreqs` on symbols (e.g. `\\Cmaj7.asFreqs`)
+- **Note frequencies**: `.noteProgFreq` → returns frequency arrays via `.midicps`
+- **Note sequences**: `.noteProg` → returns MIDI note arrays
+- **Chord frequencies**: `.chordProgFreqs` → returns frequency arrays via `.midicps`
+- **Chord progressions**: `.chordProg` → returns MIDI note arrays
+
 
 ## Chord Underscore Syntax
 

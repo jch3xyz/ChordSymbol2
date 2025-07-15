@@ -69,107 +69,116 @@ ChordSymbol {
     }
 
     // converts chords in array to notes in an array
-    *noteProgression { |array| 
+    *noteProgression { |array|
         ^array.collect { |c| this.asNotes(c) };
     }
 
     // converts chord names in array to degrees of scale in an array
-    *degreeProgression { |array scale| 
+    *degreeProgression { |array scale|
         ^array.collect { |c| this.asDegrees(c, scale) };
     }
 
     // outputs notes in a named chord to degrees of scale in an array
     *asDegrees { |input scale stepsPerOctave=12|
         // reguritate anything we definately can't process
-        if(input.isRest or: (input.isKindOf(String) or: input.isKindOf(Symbol)).not) { 
-            ^input 
+        if(input.isRest or: (input.isKindOf(String) or: input.isKindOf(Symbol)).not) {
+            ^input
         };
 
-        ^ChordSymbol.asNotes(input).asArray.collect { |n| 
+        ^ChordSymbol.asNotes(input).asArray.collect { |n|
             // TODO when next version of SC comes out use keyToDegree
             n.keyToDegree2(scale, stepsPerOctave);
         }
     }
 
-    // outputs notes in a named chord as notes
     *asNotes { |input|
-        var over, chord, shape, root = 0, noteNameLength = 0, dur, name;
-       
-        // reguritate anything we definately can't process
-        if(input.isRest or: (input.isKindOf(String) or: input.isKindOf(Symbol)).not) { 
-            ^input 
-        };
+		var over, chord, shape, root = 0, noteNameLength = 0, dur, name, octave = 0;
 
-        // convert input to string
-        name = input.asString;
+		// return early if not a valid input
+		if(input.isRest or: (input.isKindOf(String) or: input.isKindOf(Symbol)).not) {
+			^input
+		};
 
-        // lop off the inversion if specified
-        #name, over, dur = name.split($\_);
+		// convert to string and split by underscores (max 3 parts)
+		name = input.asString;
+		var parts = name.split($\_);
+		name = parts[0];
+		var octavePart = parts.size > 1.if({ parts[1] }, { nil });
+		var durPart    = parts.size > 2.if({ parts[2] }, { nil });
 
-        // work out if duration or over was specified after the first _
-        if(dur.isNil) {
-            if(over.notNil and: { over[0].isDecDigit }) {
-                dur = NoteSymbol.asDuration(over);
-                over = nil;
-            } 
-        };
+		// Handle octave part
+		if(octavePart.notNil and: { octavePart.size == 1 and: octavePart[0].isDecDigit }) {
+			octave = octavePart[0].digit;
+			over = nil;
+		} {
+			// otherwise treat it as an inversion note
+			over = NoteSymbol.asNote(octavePart);
+		};
 
-        over = NoteSymbol.asNote(over);
+		// Handle duration
+		if(durPart.notNil and: { durPart[0].isDecDigit }) {
+			dur = NoteSymbol.asDuration(durPart);
+		};
 
-        // parse chord name out of string shortening it a character at a 
-        // time ifrom the front if no match found
-        shape = shapes[name.asSymbol];
-        while({ shape.isNil and: { noteNameLength < 3 } }, {
-            noteNameLength = noteNameLength + 1;
-            shape = shapes[name.drop(noteNameLength).asSymbol];
-        });
+		// Try to match chord shape by shortening from left until matched
+		shape = shapes[name.asSymbol];
+		while({ shape.isNil and: { noteNameLength < 3 } }, {
+			noteNameLength = noteNameLength + 1;
+			shape = shapes[name.drop(noteNameLength).asSymbol];
+		});
 
-        // use the remainder of the string as the root note
-        if(noteNameLength > 0) {
-            var potentialRoot = name.keep(noteNameLength);
-            root = NoteSymbol.asNote(potentialRoot);
+		// Extract root note from left portion
+		if(noteNameLength > 0) {
+			var potentialRoot = name.keep(noteNameLength);
+			root = NoteSymbol.asNote(potentialRoot);
 
-            if(root == potentialRoot) { ^input };
+			if(root == potentialRoot) { ^input };
 
-            // if note name found assume major chord
-            shape = shape ?? { shapes.major };
-        };
+			// Default to major if chord type not found
+			shape = shape ?? { shapes.major };
+		};
 
-        // if an inversion was specified
-        if(over.notNil and: shape.notNil) {
-            var octaveShift = 0;
+		// Apply octave shift to root
+		root = root + (octave * 12);
 
-            // shift notes up an octave temporarily if root is > over
-            if(over < root) { octaveShift = 12 };
+		// If inversion specified, sort notes upward from inversion
+		if(over.notNil and: shape.notNil) {
+			var octaveShift = 0;
 
-            // iterate over the notes 
-            shape = shape.collect { |note| 
-                // and if the notes are below our new lowest note
-                // move it up an octave
-                if(note < (over - root + octaveShift)) {
-                    note + 12
-                } {
-                    note
-                }
-            };
+			if(over < root) { octaveShift = 12 };
 
-            // shift notes back if shift perfomed whilst inverting
-            shape = shape - octaveShift;
-        };
+			shape = shape.collect { |note|
+				if(note < (over - root + octaveShift)) {
+					note + 12
+				} {
+					note
+				}
+			};
 
-        chord = (root + shape).sort; 
+			shape = shape - octaveShift;
+		};
 
-        // if we parsed out a string return the input
-        if(chord.isString) { ^input };
+		chord = (root + shape).sort;
 
-        // if duration was specified return it with the chord
-        dur !? { ^[chord, dur.asInteger] };
+		if(chord.isString) { ^input };
 
-        // otherwise return the chord
-        ^chord;
-    }
+		dur !? { ^[chord, dur.asInteger] };
+
+		^chord;
+	}
+
+	*asFreqs { |input|
+		var notes = this.asNotes(input);
+
+		if(notes.isArray) {
+			^notes.collect(_.midicps);
+		} {
+			^notes.midicps;
+		}
+	}
 
     *new { |c| ^this.asNotes(c) }
+
 }
 
 NoteSymbol {
@@ -181,7 +190,7 @@ NoteSymbol {
         notes = (c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11);
 
         // bung in all the sharps and flats
-        notes.keysValuesDo { |name val| 
+        notes.keysValuesDo { |name val|
             notes[(name ++ \s).asSymbol] = val + 1;
             notes[(name ++ \b).asSymbol] = val - 1;
         };
@@ -194,10 +203,10 @@ NoteSymbol {
         var octave = 0, note, dur, name;
 
         // reguritate anything we definately can't process
-        if(input.isRest or: (input.isKindOf(String) or: input.isKindOf(Symbol)).not) { 
-            ^input 
+        if(input.isRest or: (input.isKindOf(String) or: input.isKindOf(Symbol)).not) {
+            ^input
         };
-       
+
         // make input a lowercase string
         name = input.asString.toLower;
 
@@ -210,17 +219,17 @@ NoteSymbol {
         };
 
         // convert duration if specified
-        dur = dur !? { NoteSymbol.asDuration(dur) }; 
+        dur = dur !? { NoteSymbol.asDuration(dur) };
 
         // if octave specified chop it off and shift note
         if(name.notNil and: { name.last.isDecDigit }) {
-            octave = name.last.digit * 12 + 12; 
+            octave = name.last.digit * 12 + 12;
             name = name.drop(-1);
         };
 
         // add the octave to the note number
         notes[name.asSymbol] !? { note = notes[name.asSymbol] + octave };
-       
+
         // if duration was specified return that with note as tuple
         dur !? { note !? { ^[note, dur.asInteger] } };
 
@@ -230,16 +239,26 @@ NoteSymbol {
         // otherwise just throw out what came in
         ^input;
     }
-    
-    *asDegree { |name scale stepsPerOctave=12| 
+
+    *asDegree { |name scale stepsPerOctave=12|
         ^NoteSymbol.asNote(name, scale, stepsPerOctave);
     }
+
+	*asFreq { |input|
+		var note = this.asNote(input);
+
+		if(note.isArray) {
+			^note[0].midicps  // assumes note with duration like [note, dur]
+		} {
+			^note.midicps
+		}
+	}
 
     *asDuration { |string|
         string = string.asString;
         if(string.size > 1) {
             // first digit is numerator second is denumerator
-            ^string[0].digit / string[1].digit; 
+            ^string[0].digit / string[1].digit;
         } {
             ^string[0].digit;
         };
@@ -253,16 +272,19 @@ NoteSymbol {
 + Symbol {
     // treat symbol as representing a chord
     asNotes { ^ChordSymbol.asNotes(this) }
-    asDegrees { |scale notesPerOctave| 
-        ^ChordSymbol.asDegrees(this, scale, notesPerOctave) 
+    asDegrees { |scale notesPerOctave|
+        ^ChordSymbol.asDegrees(this, scale, notesPerOctave)
     }
 
     // treat symbol as representing a note
     asNote { ^NoteSymbol.asNote(this) }
     asDegree { |scale notesPerOctave=12|
-        ^NoteSymbol.asDegree(this, scale, notesPerOctave) 
+        ^NoteSymbol.asDegree(this, scale, notesPerOctave)
     }
-    
+
+	asFreqs { ^ChordSymbol.asFreqs(this) }
+	asFreq { ^NoteSymbol.asFreq(this) }
+
     asNoteOrChord {
         var ns, cs;
 
@@ -282,9 +304,9 @@ NoteSymbol {
     embedInStream { ^this.asNoteOrChord.yield }
 
     // work out wether or not this is a rest or not
-    isRest { 
+    isRest {
         ^this.isMap.not
-        and: { ^NoteSymbol.restNames.findMatch(this).notNil } 
+        and: { ^NoteSymbol.restNames.findMatch(this).notNil }
         and: { ^NoteSymbol.asNote(this).asArray[0] }
         and: { ^ChordSymbol.asNotes(this)[0] == \ }
     }
@@ -305,7 +327,7 @@ NoteSymbol {
         ^ChordSymbol.degreeProgression(this, scale, notesPerOctave);
     }
 
-    noteProg {  
+    noteProg {
         ^this.collect { |name| name.asNote };
     }
 
@@ -313,20 +335,28 @@ NoteSymbol {
         ^this.collect { |name| name.asDegree(scale, notesPerOctave) }
     }
 
+	chordProgFreqs {
+		^this.collect { |s| s.asFreqs };
+	}
+
+	noteProgFreq {
+		^this.collect { |name| name.asFreq };
+	}
+
     // converts a given key/note to a degree
     // TODO won't be required in next SC release see pull request #1164
     performKeyToDegree2 { |key stepsPerOctave=12|
         var nearestDegree, closestScale, sharpening, octave;
 
-        stepsPerOctave = stepsPerOctave ?? 12;    
+        stepsPerOctave = stepsPerOctave ?? 12;
 
         // store away octave and wrap key inside a single one
         octave = (key / stepsPerOctave).floor;
 		key = key % stepsPerOctave;
 
         // find the closest degree in scale for all keys in octave
-        closestScale = (0..stepsPerOctave).collect { |k| 
-            this.indexInBetween(k).floor 
+        closestScale = (0..stepsPerOctave).collect { |k|
+            this.indexInBetween(k).floor
         };
 
         // find the closest degree in the scale for the key
@@ -337,19 +367,20 @@ NoteSymbol {
 
         ^nearestDegree + sharpening + (octave * this.size);
     }
+
 }
 
 + SimpleNumber {
     // TODO won't be required in next SC release see pull request #1164
     keyToDegree2 { |scale stepsPerOctave=12| // collection is presumed to be sorted
         scale = scale ?? { Scale.major.degrees };
-        ^scale.performKeyToDegree2(this, stepsPerOctave) 
+        ^scale.performKeyToDegree2(this, stepsPerOctave)
     }
 }
 
 + Scale {
     // TODO won't be required in next SC release see pull request #1164
-    performKeyToDegree2 { |key stepsPerOctave=12| 
+    performKeyToDegree2 { |key stepsPerOctave=12|
         ^degrees.performKeyToDegree2(key, stepsPerOctave)
     }
 }
